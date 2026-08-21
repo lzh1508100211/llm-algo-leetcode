@@ -265,13 +265,13 @@ $$
 ### 3. 复数旋转因子
 
 $$
-\text{freqs\_cis}(m, i) = e^{i \times \text{angle}(m, i)}
+\text{freqs\\_cis}(m, i) = e^{i \times \text{angle}(m, i)}
 $$
 
 展开为欧拉公式：
 
 $$
-\text{freqs\_cis}(m, i) = \cos(m \times \theta_i) + i \times \sin(m \times \theta_i)
+\text{freqs\\_cis}(m, i) = \cos(m \times \theta_i) + i \times \sin(m \times \theta_i)
 $$
 
 ### 4. 应用旋转到 Q 和 K
@@ -296,7 +296,7 @@ $$
 应用旋转：
 
 $$
-x_{\text{rotated}}(m) = x_{\text{complex}}(m) \times \text{freqs\_cis}(m)
+x_{\text{rotated}}(m) = x_{\text{complex}}(m) \times \text{freqs\\_cis}(m)
 $$
 
 ### 5. 注意力分数（核心）
@@ -325,7 +325,7 @@ $$
 | :--- | :--- | :--- |
 | $\theta_i$ | 频率 | `[d//2]` |
 | $\text{angle}(m, i)$ | 旋转角度 | `[T, d//2]` |
-| $\text{freqs\_cis}(m, i)$ | 复数旋转因子 | `[T, d//2]` |
+| $\text{freqs\\_cis}(m, i)$ | 复数旋转因子 | `[T, d//2]` |
 | $Q_{\text{rot}}$ | 旋转后的查询 | `[B, T, H, d]` |
 | $K_{\text{rot}}$ | 旋转后的键 | `[B, T, H, d]` |
 | $\text{Score}(m, n)$ | 注意力分数 | `[B, H, T, T]` |
