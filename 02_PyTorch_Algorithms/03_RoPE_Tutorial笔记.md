@@ -72,48 +72,64 @@
 ### 三种注意力机制
 #### 核心公式（基准）
 无论有没有位置编码，Attention 的计算核心都是：
+
 $$
 \text{Attention}(Q, K, V) = \text{Softmax}\left( \frac{Q K^T}{\sqrt{d_k}} \right) V
 $$
+
 #### 无位置编码（原始版本）
 直接使用词嵌入 $X$ 生成 Q、K、V。
+
 $$
 Q = X W_Q, \quad K = X W_K, \quad V = X W_V
 $$
+
 代入核心公式得到注意力分数：
+
 $$
 \text{Score} = \frac{Q K^T}{\sqrt{d_k}}
 = \frac{(X W_Q) (X W_K)^T}{\sqrt{d_k}}
 $$
+
 **特点**：完全没有位置信息，交换词的顺序后结果不变。
 #### Sinusoidal 位置编码（原始 Transformer）
 位置编码 $P$ 直接加到词嵌入 $X$ 上。
+
 $$
 Q = (X + P) W_Q, \quad K = (X + P) W_K, \quad V = (X + P) W_V
 $$
+
 代入核心公式：
+
 $$
 \text{Score} = \frac{Q K^T}{\sqrt{d_k}}
 = \frac{((X + P) W_Q) ((X + P) W_K)^T}{\sqrt{d_k}}
 $$
+
 **特点**：模型知道每个词的绝对位置编号，但难以直接捕获词之间的相对距离。
 #### RoPE 旋转位置编码（LLaMA / 现代大模型）
 位置信息通过旋转矩阵 $R_\theta$ 作用于 Q 和 K，不改变 V。
 位置 $m$ 的旋转矩阵为 $R_\theta(m)$，位置 $n$ 的旋转矩阵为 $R_\theta(n)$：
+
 $$
 Q_m = (X_m W_Q) \cdot R_\theta(m), \quad 
 K_n = (X_n W_K) \cdot R_\theta(n), \quad 
 V_n = X_n W_V
 $$
+
 代入核心公式：
+
 $$
 \text{Score}_{m,n} = \frac{Q_m K_n^T}{\sqrt{d_k}}
 = \frac{(X_m W_Q) R_\theta(m) \cdot \left( (X_n W_K) R_\theta(n) \right)^T}{\sqrt{d_k}}
 $$
+
 利用旋转矩阵的性质，化简为：
+
 $$
 \boxed{\text{Score}_{m,n} = \frac{(X_m W_Q) (X_n W_K)^T \cdot \cos(m - n)}{\sqrt{d_k}}}
 $$
+
 **特点**：分数直接依赖 $(m - n)$，模型能清楚感知两个词之间的相对距离，外推能力更强。
 #### 综合对比
 | 方法 | 公式 | 位置信息形式 | 能否感知相对距离 |
