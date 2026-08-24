@@ -60,6 +60,7 @@
 -   **速度快，成本最低，但可能不够精细**
 **对应：** MQA = Q 独立，K、V 全部共享
 ### 对比表
+
 | 场景 | 经理数（Q）| 助理数（K,V）| 成本 | 效果 |
 |--|--|--|--|--|
 |**MHA** | 4 个 | 4 个助理 | 💰💰💰 最高 | ⭐⭐⭐ 最好|
@@ -68,17 +69,19 @@
 
 ### 再看“KV Cache”（助理的笔记）
 在生成下一个词时，助理需要记住之前查过的资料（K 和 V），不用每次都重新查。
+
 | 类型 | 助理数 | 需要记的笔记量 | 速度 |
 | -- | -- | -- | -- |
 | **MHA** | 4 个助理 | 4 份笔记 | 慢（要查 4 份）|
 | **GQA** | 2 个助理 | 2 份笔记 | 中等 |
 | **MQA** | 1 个助理 | 1 份笔记 | 快（只查 1 份）|
+
 ## KV Cache
 在自回归生成中，每次生成第 $N$  个 Token 时，我们需要计算它与前面 $N - 1$  个 Token 的相关性。为了避免重复计算前 $N - 1$  个 Token 的特征，我们将其投影后的 Key 和 Value 张量缓存 (Cache)在显存中，当前步直接拼接读取。
 然而，读取巨量的 KV Cache 会面临严重的**显存容量瓶颈**和**内存带宽瓶颈 (Memory-bound)**，导致推理极慢。
 **从 MHA 到 GQA：大模型架构的进化**
 -   **MHA (Multi-Head Attention)**: 标准的多头注意力。每个 Query 头都有自己专属的 Key 和 Value 头。即  $n$  个 Q 头对应  $n$  个 KV 头。KV Cache 占用最大（与 Q 头数成正比），推理时显存压力最大，但表达能力最强。
--   **MQA (Multi-Query Attention)**: 所有的 Query 头共享**同一个** Key 和 Value 头。即  $n$  个 Q 头对应 1 个 KV 头。KV Cache 占用大幅减少（单层仅为 MHA 的  $\frac{1}{n}$  ），但由于 KV 表达能力锐减，模型效果往往打折扣。
+-   **MQA (Multi-Query Attention)**: 所有的 Query 头共享**同一个** Key 和 Value 头。即  $$n$$  个 Q 头对应 1 个 KV 头。KV Cache 占用大幅减少（单层仅为 MHA 的  $$\frac{1}{n}$$  ），但由于 KV 表达能力锐减，模型效果往往打折扣。
 -   **GQA (Grouped-Query Attention)**: LLaMA-2/3 采用的折中方案。将 Query 头分组，每组共享一个 Key 和 Value 头。即  $n$  个 Q 头对应  $g$   个 KV 头（  $1 < g < n$  ，   $g$  为组数）。KV Cache 占用介于 MHA 和 MQA 之间（单层为 MHA 的 ），在模型效果和显存占用之间取得了良好的工程平衡。
 **MLA：DeepSeek 的极致 KV 压缩方案**
 -   MLA (Multi-Head Latent Attention) 是 DeepSeek-V2/V3 采用的注意力机制，核心思路是不再缓存完整的 K/V 张量，而是缓存压缩后的潜在向量，计算时再实时解压。
