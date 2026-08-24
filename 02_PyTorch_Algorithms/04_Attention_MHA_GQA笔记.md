@@ -81,7 +81,7 @@
 然而，读取巨量的 KV Cache 会面临严重的**显存容量瓶颈**和**内存带宽瓶颈 (Memory-bound)**，导致推理极慢。
 **从 MHA 到 GQA：大模型架构的进化**
 -   **MHA (Multi-Head Attention)**: 标准的多头注意力。每个 Query 头都有自己专属的 Key 和 Value 头。即  $n$  个 Q 头对应  $n$  个 KV 头。KV Cache 占用最大（与 Q 头数成正比），推理时显存压力最大，但表达能力最强。
--   **MQA (Multi-Query Attention)**: 所有的 Query 头共享**同一个** Key 和 Value 头。即  $n$  个 Q 头对应 1 个 KV 头。KV Cache 占用大幅减少（单层仅为 MHA 的。$\frac{1}{n}$）  ，但由于 KV 表达能力锐减，模型效果往往打折扣。
+-   **MQA (Multi-Query Attention)**: 所有的 Query 头共享**同一个** Key 和 Value 头。即  $n$  个 Q 头对应 1 个 KV 头。KV Cache 占用大幅减少（单层仅为 MHA 的  $\frac{1}{n}$  ）  ，但由于 KV 表达能力锐减，模型效果往往打折扣。
 -   **GQA (Grouped-Query Attention)**: LLaMA-2/3 采用的折中方案。将 Query 头分组，每组共享一个 Key 和 Value 头。即  $n$  个 Q 头对应  $g$   个 KV 头（  $1 < g < n$  ，   $g$  为组数）。KV Cache 占用介于 MHA 和 MQA 之间（单层为 MHA 的 ），在模型效果和显存占用之间取得了良好的工程平衡。
 **MLA：DeepSeek 的极致 KV 压缩方案**
 -   MLA (Multi-Head Latent Attention) 是 DeepSeek-V2/V3 采用的注意力机制，核心思路是不再缓存完整的 K/V 张量，而是缓存压缩后的潜在向量，计算时再实时解压。
