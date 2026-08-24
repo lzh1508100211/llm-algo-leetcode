@@ -92,7 +92,11 @@
 **注意**：GQA 的压缩来自"共享头数"，MLA 的压缩来自"压缩维度"，两条路线可以结合使用。如果你对 MLA 的数学原理和代码实现感兴趣，可以查阅 DeepSeek-V2 技术报告。
 ## 核心公式与张量维度
 **经过线性投影后，注意力计算公式：**
-$$ \text{Attention}(Q, K, V) = \text{Softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V $$
+
+$$ 
+\text{Attention}(Q, K, V) = \text{Softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V 
+$$
+
 **张量变化**
 ```
       输入阶段
