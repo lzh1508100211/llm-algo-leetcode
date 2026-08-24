@@ -165,7 +165,9 @@ from debugpy.launcher import output
   
 def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:  
     """  
-    将 KV 头复制 n_rep 次，以匹配 Query 头的数量 (GQA/MQA 需要)    当 n_rep == 1 时（即 MHA），直接返回原张量。    """    batch, num_kv_heads, slen, head_dim = hidden_states.shape  
+    将 KV 头复制 n_rep 次，以匹配 Query 头的数量 (GQA/MQA 需要)    当 n_rep == 1 时（即 MHA），直接返回原张量。    
+    """    
+    batch, num_kv_heads, slen, head_dim = hidden_states.shape  
     if n_rep == 1:  
         return hidden_states  
     #hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_kv_heads, n_rep, slen, head_dim)  
@@ -199,8 +201,14 @@ class GroupedQueryAttention(nn.Module):
     ):  
         """  
         前向传播。  
-        Args:            x: 输入张量，形状 [batch, seq_len, hidden_dim]            attention_mask: 注意力掩码，形状应为 [batch, 1, 1, seq_len]（因果掩码）                        或 [batch, 1, seq_len, seq_len]，会广播到 scores。            kv_cache: 缓存的 (K, V) 张量，用于自回归生成。  
-        Returns:            输出张量 [batch, seq_len, hidden_dim]，更新后的 KV Cache        """        batch_size, seq_len, _ = x.shape  
+        Args:            
+	        x: 输入张量，形状 [batch, seq_len, hidden_dim]            
+	        attention_mask: 注意力掩码，形状应为 [batch, 1, 1, seq_len]（因果掩码）                        或 [batch, 1, seq_len, seq_len]，会广播到 scores。            
+	        kv_cache: 缓存的 (K, V) 张量，用于自回归生成。  
+        Returns:            
+	        输出张量 [batch, seq_len, hidden_dim]，更新后的 KV Cache        
+		"""        
+		batch_size, seq_len, _ = x.shape  
   
         # 1. 线性投影  
         xq, xk, xv = self.q_proj(x), self.k_proj(x), self.v_proj(x)  
@@ -214,7 +222,9 @@ class GroupedQueryAttention(nn.Module):
         # ==========================================  
         # TODO 2: 处理 KV Cache  
         # 提示: 如果有 cache，将历史 KV 拼接在当前 KV 的 seq_len 维度前  
-        # 注意: 拼接维度是 dim=2 (seq_len)        # ==========================================        if kv_cache is not None:  
+        # 注意: 拼接维度是 dim=2 (seq_len)        
+        # ==========================================        
+        if kv_cache is not None:  
             k_cache, v_cache = kv_cache  
             xk = torch.cat((k_cache, xk), dim=2)  
             xv = torch.cat((v_cache, xv), dim=2)  
@@ -228,7 +238,11 @@ class GroupedQueryAttention(nn.Module):
         # ==========================================  
         # TODO 3: 计算注意力分数 (Scaled Dot-Product)  
         # 公式: scores = Q @ K^T / sqrt(head_dim)  
-        # 提示: 使用 torch.matmul，并对 K 转置最后两维        # 注意: attention_mask 形状为 [batch, 1, 1, seq_len]（因果掩码），        #       会广播到 scores 的 [batch, num_heads, seq_len, seq_len]        # ==========================================        # scores = ???        scores = torch.matmul(xq, xk.transpose(2, 3)) / math.sqrt(self.head_dim)  
+        # 提示: 使用 torch.matmul，并对 K 转置最后两维        
+        # 注意: attention_mask 形状为 [batch, 1, 1, seq_len]（因果掩码），        
+        #       会广播到 scores 的 [batch, num_heads, seq_len, seq_len]        
+        # ==========================================             
+        scores = torch.matmul(xq, xk.transpose(2, 3)) / math.sqrt(self.head_dim)  
   
   
         if attention_mask is not None:  
@@ -241,7 +255,9 @@ class GroupedQueryAttention(nn.Module):
         # ==========================================  
         # TODO 4: 恢复形状并输出  
         # [B, H, S, D] -> [B, S, H*D]  
-        # 提示: transpose + contiguous + view        # ==========================================        output = output.transpose(1, 2).reshape(batch_size, seq_len, -1)  
+        # 提示: transpose + contiguous + view        
+        # ==========================================        
+        output = output.transpose(1, 2).reshape(batch_size, seq_len, -1)  
         return self.o_proj(output), new_kv_cache
 ```
 ```
