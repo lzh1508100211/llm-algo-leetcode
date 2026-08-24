@@ -87,15 +87,11 @@
 -   MLA (Multi-Head Latent Attention) 是 DeepSeek-V2/V3 采用的注意力机制，核心思路是不再缓存完整的 K/V 张量，而是缓存压缩后的潜在向量，计算时再实时解压。
 **不同架构的 KV Cache 对比（单 Token 单层）**
 
-| 架构 | KV Cache 大小 | 代表模型 |
-
-|--|--|--|--|
-
-| MHA | ~32 KB | 原始 Transformer |
-
-| GQA | ~4 KB | LLaMA-2/3 |
-
-| MLA | ~1.13 KB | DeepSeek-V2/V3 |
+| 架构 | KV Cache 大小 | 代表模型 | 
+|--|--|--|--| 
+| MHA | ~32 KB | 原始 Transformer | 
+| GQA | ~4 KB | LLaMA-2/3 | 
+| MLA | ~1.13 KB | DeepSeek-V2/V3 | 
 
 相比 MHA，MLA 的 KV Cache 缩减约 28 倍，这也是 DeepSeek 能支持 1M 上下文的工程基础之一。
 **注意**：GQA 的压缩来自"共享头数"，MLA 的压缩来自"压缩维度"，两条路线可以结合使用。如果你对 MLA 的数学原理和代码实现感兴趣，可以查阅 DeepSeek-V2 技术报告。
