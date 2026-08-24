@@ -88,9 +88,13 @@
 **不同架构的 KV Cache 对比（单 Token 单层）**
 
 | 架构 | KV Cache 大小 | 代表模型 |
+
 |--|--|--|--|
+
 | MHA | ~32 KB | 原始 Transformer |
+
 | GQA | ~4 KB | LLaMA-2/3 |
+
 | MLA | ~1.13 KB | DeepSeek-V2/V3 |
 
 相比 MHA，MLA 的 KV Cache 缩减约 28 倍，这也是 DeepSeek 能支持 1M 上下文的工程基础之一。
