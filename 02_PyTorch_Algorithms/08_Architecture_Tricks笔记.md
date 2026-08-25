@@ -2,10 +2,14 @@
 本节选两个典型 architecture tricks 做最小实现：Qwen / GPT 系常见的 Tie Word Embeddings，以及 Gemma 风格的 `1 + w` RMSNorm 缩放。完成后，你应该能看懂这些“看起来很小”的结构差异为什么值得单独讨论，并能在阅读不同模型代码时快速定位它们改变了哪条参数或梯度路径。
 ## 核心差异与机制
 本节对比 Qwen 和 Gemma 在架构设计上的两项关键改动及其设计动机。
+
 **Trick 1: Tie Word Embeddings (权重绑定) - Qwen 系列 / GPT-2**
+
 -   **做法**：在绝大多数模型（如 LLaMA）中，最开始的 `Token Embedding` 矩阵（把 ID 变向量）和最后的 `LM Head` 矩阵（把向量变概率）是两个独立的权重矩阵。但在 Qwen 中，**这两个矩阵共享同一份物理内存的参数！**
 -   **意义**：极大减少了参数量（词表动辄 15 万，非常占参数），并且在训练时能让 Embedding 获得更直接的梯度更新。
+
 **Trick 2: RMSNorm 的 "+1 缩放" - Gemma 系列**
+
 -   **做法**：标准的 RMSNorm 公式是  $y = \frac{x}{\mathrm{RMS}(x)} \cdot w$  ，其中  $\mathrm{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^{d} x_i^2 + \epsilon}$  。而 Google 的 Gemma 把它改成了 。
 -   **意义**：在 PyTorch 中，权重的默认初始化通常是 0（或者很小的值）。Gemma 加上 1，使得在训练的极早期（缩放参数  时），RMSNorm 直接等价于一个不做任何缩放的纯归一化层，**这带来了非常平滑的梯度和非常稳定的早期训练！**
 **快速对照：**
