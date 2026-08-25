@@ -6,7 +6,7 @@
 -   **做法**：在绝大多数模型（如 LLaMA）中，最开始的 `Token Embedding` 矩阵（把 ID 变向量）和最后的 `LM Head` 矩阵（把向量变概率）是两个独立的权重矩阵。但在 Qwen 中，**这两个矩阵共享同一份物理内存的参数！**
 -   **意义**：极大减少了参数量（词表动辄 15 万，非常占参数），并且在训练时能让 Embedding 获得更直接的梯度更新。
 **Trick 2: RMSNorm 的 "+1 缩放" - Gemma 系列**
--   **做法**：标准的 RMSNorm 公式是 $y = \frac{x}{\mathrm{RMS}(x)} \cdot w$，其中 $\mathrm{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^{d} x_i^2 + \epsilon}$。而 Google 的 Gemma 把它改成了 。
+-   **做法**：标准的 RMSNorm 公式是 $y = \\frac{x}{\\mathrm{RMS}(x)} \\cdot w$，其中 $\\mathrm{RMS}(x) = \\sqrt{\\frac{1}{d} \\sum_{i=1}^{d} x_i^2 + \\epsilon}$。而 Google 的 Gemma 把它改成了 。
 -   **意义**：在 PyTorch 中，权重的默认初始化通常是 0（或者很小的值）。Gemma 加上 1，使得在训练的极早期（缩放参数  时），RMSNorm 直接等价于一个不做任何缩放的纯归一化层，**这带来了非常平滑的梯度和非常稳定的早期训练！**
 **快速对照：**
 | 模型 | Embedding / LM Head | Norm | 备注 |
