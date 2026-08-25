@@ -6,15 +6,17 @@
 -   **做法**：在绝大多数模型（如 LLaMA）中，最开始的 `Token Embedding` 矩阵（把 ID 变向量）和最后的 `LM Head` 矩阵（把向量变概率）是两个独立的权重矩阵。但在 Qwen 中，**这两个矩阵共享同一份物理内存的参数！**
 -   **意义**：极大减少了参数量（词表动辄 15 万，非常占参数），并且在训练时能让 Embedding 获得更直接的梯度更新。
 **Trick 2: RMSNorm 的 "+1 缩放" - Gemma 系列**
--   **做法**：标准的 RMSNorm 公式是 $y = \frac{x}{\mathrm{RMS}(x)} \cdot w$ ，其中 $\\mathrm{RMS}(x) = \\sqrt{\\frac{1}{d} \\sum_{i=1}^{d} x_i^2 + \\epsilon}$ 。而 Google 的 Gemma 把它改成了 。
+-   **做法**：标准的 RMSNorm 公式是 $y = \frac{x}{\mathrm{RMS}(x)} \cdot w$，其中 $\mathrm{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^{d} x_i^2 + \epsilon}$。而 Google 的 Gemma 把它改成了 。
 -   **意义**：在 PyTorch 中，权重的默认初始化通常是 0（或者很小的值）。Gemma 加上 1，使得在训练的极早期（缩放参数  时），RMSNorm 直接等价于一个不做任何缩放的纯归一化层，**这带来了非常平滑的梯度和非常稳定的早期训练！**
 **快速对照：**
+
 | 模型 | Embedding / LM Head | Norm | 备注 |
 | --- | --- | --- | --- |
 | GPT-2 | 共享 `embed_tokens` 和 `lm_head` 的权重 | 标准 LayerNorm / RMSNorm 变体 | 经典的权重绑定 baseline，便于对照 |
 | LLaMA3 | 通常不绑定 | RMSNorm | 现代主流参考，结构较简洁 |
 | Qwen | 共享 `embed_tokens` 和 `lm_head` 的权重 | RMSNorm | 减少参数量，输入输出监督更一致 |
 | Gemma | 通常不绑定 | `1 + w` 的 RMSNorm | 初始阶段更平滑，训练更稳 |
+
 一句话总结：Qwen 通过共享输入/输出权重压缩参数，Gemma 通过 `1 + w` 缩放提升早期训练稳定性。
 ## Weight Tying 与偏置项设计
 Weight Tying 让 Embedding 层和输出层（LM Head）共享同一份参数；LM Head 通常不加 bias，是这类实现的常见配置。
