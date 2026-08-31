@@ -176,5 +176,154 @@ loss = outputs.loss  # 模型内部已经 shift 好了
 真实目标不是“把 token 拼起来”，而是先确认：**哪些 token 是上下文，哪些 token 是监督，哪些样本应该直接过滤。**
 ## 实战代码
 ```
-
+import torch  
+import torch.nn as nn  
+def build_sft_data(  
+    prompt_ids: list[int],  
+    response_ids: list[int],  
+    pad_id: int = 0,  
+    eos_id: int | None = None,  
+    max_len: int = 16,  
+    min_response_tokens: int = 1,  
+):  
+    """  
+    构造单条 SFT 训练数据，返回 input_ids / attention_mask / labels。    
+    """    
+    response_with_eos = response_ids + ([] if eos_id is None else [eos_id])  
+  
+    # 1. 拼接成完整序列。  
+    input_ids = prompt_ids + response_with_eos  
+  
+    # ==========================================  
+    # Prompt 部分先统一标成 ignore_index，确保只对 Response/EOS 计算损失。    # TODO 1: 构造 labels  
+    # 规则：  
+    # - 长度与 input_ids 相同    
+    # - prompt 部分的 label 设置为 -100    
+    # - response/EOS 部分的 label 保持原样    
+    # ==========================================    
+    labels = [-100] * len(prompt_ids) + response_with_eos  
+    # ==========================================  
+    # TODO 2: 截断 (Truncation) 与有效监督检查  
+    # 规则：  
+    # - 如果超出 max_len，从末尾截断    
+    # - 截断后至少保留 min_response_tokens 个可监督 token    
+    # ==========================================    
+    input_ids = input_ids[:max_len]  
+    labels = labels[:max_len]  
+    valid_supervised = sum(1 for label in labels if label != -100)  
+    if valid_supervised < min_response_tokens:  
+        raise ValueError("无有效监督 token")  
+    # ==========================================  
+    # TODO 3: attention mask 与填充 (Padding)  
+    # 规则：  
+    # - padding 前的真实 token 位置为 1    
+    # - input_ids 填 pad_id，attention_mask 填 0，labels 填 -100    
+    # ==========================================    
+    # 生成遮罩    
+    attention_mask = [1] * len(input_ids)  
+    # 计算需要填充的字符数量  
+    pad_len = max_len - len(input_ids)  
+    # 字符填充  
+    input_ids = input_ids + [pad_id] * pad_len  
+    # 更新遮罩  
+    attention_mask = attention_mask + [0] * pad_len  
+    # 更新结果  
+    labels = labels + [-100] * pad_len  
+    return (  
+        torch.tensor(input_ids, dtype=torch.long),  
+        torch.tensor(attention_mask, dtype=torch.long),  
+        torch.tensor(labels, dtype=torch.long),  
+    )  
+  
+  
+def compute_sft_loss(logits: torch.Tensor, labels: torch.Tensor, attention_mask: torch.Tensor | None = None):  
+    """  
+    计算自回归 SFT Loss    Args:        
+    logits: [batch_size, seq_len, vocab_size]        
+    labels: [batch_size, seq_len]        
+    attention_mask: [batch_size, seq_len]，可选，用于二次保护 padding 位置    
+    """    
+    # ==========================================    
+    # TODO 4: 实现 Shift 错位对齐  
+    # 将 logits 的最后一个 token 切掉  
+    # 将 labels 的第一个 token 切掉    
+    # 如果传入 attention_mask，也同步切掉第一个位置    
+    # ==========================================    
+    shift_logits = logits[..., :-1, :]  
+    shift_labels = labels[..., 1:]  
+    if attention_mask is not None:  
+        shift_attention_mask = attention_mask[..., 1:]  
+        # 用 attention_mask 二次保护 padding 位置（不影响已有的 -100）  
+        shift_labels = shift_labels.masked_fill(shift_attention_mask == 0, -100)  
+  
+    # ==========================================  
+    # TODO 5: 检查是否存在有效监督 token，并计算交叉熵  
+    # ==========================================  
+    if not torch.any(shift_labels != -100):  
+        raise ValueError("不存在有效监督 token")  
+    loss_fct = nn.CrossEntropyLoss()  
+    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))  
+    return loss  
+  
+# 运行此单元格以测试你的实现  
+def test_sft_pipeline():  
+    try:  
+        # --- 测试数据构造 ---  
+        prompt = [10, 20, 30]  
+        response = [40, 50, 60, 70]  
+        pad_id = 0  
+        eos_id = 2  
+        max_len = 9  
+  
+        input_ids, attention_mask, labels = build_sft_data(prompt, response, pad_id, eos_id, max_len)  
+  
+        print(f"Input IDs      : {input_ids.tolist()}")  
+        print(f"Attention Mask : {attention_mask.tolist()}")  
+        print(f"Labels         : {labels.tolist()}")  
+  
+        assert input_ids.tolist() == [10, 20, 30, 40, 50, 60, 70, 2, 0], "Input IDs 构造错误！"  
+        assert attention_mask.tolist() == [1, 1, 1, 1, 1, 1, 1, 1, 0], "attention_mask 构造错误！"  
+        assert labels.tolist() == [-100, -100, -100, 40, 50, 60, 70, 2, -100], "Labels 构造或 Padding 错误！"  
+  
+        # --- 测试截断后无监督 token 的保护 ---  
+        try:  
+            build_sft_data(prompt, [40], pad_id=pad_id, eos_id=eos_id, max_len=3)  
+            raise AssertionError("截断后没有 response token 时应该报错")  
+        except ValueError:  
+            pass  
+  
+        # --- 测试 Loss 计算 ---  
+        batch_size = 1  
+        vocab_size = 100  
+        logits = torch.randn(batch_size, max_len, vocab_size)  
+  
+        # 手动让它预测准确：logits[t] 预测 labels[t+1]  
+        logits[0, 2, 40] = 50.0  
+        logits[0, 3, 50] = 50.0  
+        logits[0, 4, 60] = 50.0  
+        logits[0, 5, 70] = 50.0  
+        logits[0, 6, 2] = 50.0  
+  
+        labels_batch = labels.unsqueeze(0)  
+        attention_batch = attention_mask.unsqueeze(0)  
+        loss = compute_sft_loss(logits, labels_batch, attention_batch)  
+  
+        assert loss.item() < 0.01, f"Loss 异常偏大，可能包含了 Prompt 或 Padding 的计算！Loss = {loss.item()}"  
+  
+        print("\n✅ All Tests Passed! SFT 数据与 loss 对齐逻辑实现正确。")  
+  
+    except NotImplementedError:  
+        print("请先完成 TODO 部分的代码！")  
+        raise  
+    except (AttributeError, NameError, TypeError, ValueError) as e:  
+        print("代码可能未完成，导致变量未定义" if isinstance(e, NameError) else "代码可能未完成，导致了类型错误")  
+        raise NotImplementedError("请先完成 TODO 部分的代码！") from e  
+    except AssertionError as e:  
+        print(f"❌ 测试失败: {e}")  
+        raise NotImplementedError("请先完成 TODO 部分的代码！") from e  
+    except Exception as e:  
+        print(f"❌ 发生异常: {e}")  
+        raise  
+  
+test_sft_pipeline()
 ```
