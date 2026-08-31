@@ -16,7 +16,7 @@ $h=W_0·x$
 将权重更新拆解为**低秩分解**：
 $h=(W_0 + \Delta(W))·x$
 
-其中 $\Delta(W)$ 被分解为两个小矩阵：
+其中  $\Delta(W)$  被分解为两个小矩阵：
 $\Delta(W)=B \cdot A$
 $h=W_0 \cdot x+B \cdot A \cdot x$
 | 矩阵 | 形状 | 参数量 | 是否可训练 | 备注 |
